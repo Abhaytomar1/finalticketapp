@@ -1,0 +1,216 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Priority Distribution</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            margin: auto;
+        }
+
+        #priorityChart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .ticket-table {
+            margin-top: 20px;
+            width: 100%;
+            display: table;
+        }
+
+        .ticket-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .ticket-table th, .ticket-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .ticket-table th.sort-asc::after {
+            content: ' ▲';
+        }
+
+        .ticket-table th.sort-desc::after {
+            content: ' ▼';
+        }
+
+        .ticket-table th {
+            background-color: #f2f2f2;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Ticket Priority Distribution</h2>
+
+    <div class="chart-container">
+        <canvas id="priorityChart"></canvas>
+    </div>
+
+    <!-- Filter input -->
+    <input type="text" id="filterInput" class="filter-input" placeholder="Search tickets...">
+
+    <!-- Single table for displaying tickets -->
+    <div class="ticket-table">
+        <h3>Tickets</h3>
+        <table id="ticketTable">
+            <thead>
+                <tr>
+                    <th data-column="TicketNo">Ticket No</th>
+                    <th data-column="Subject">Subject</th>
+                    <th data-column="TicketBody">Ticket Body</th>
+                    <th data-column="CreatedAt">Created At</th>
+                    <th data-column="Priority">Priority</th>
+                    <th data-column="Status">Status</th>
+                    <th data-column="Deadline">Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ticket in Model.AllTickets)
+                {
+                    <tr data-priority="@ticket.Priority">
+                        <td>@ticket.TicketNo</td>
+                        <td>@ticket.Subject</td>
+                        <td>@ticket.TicketBody</td>
+                        <td>@ticket.CreatedAt</td>
+                        <td>@ticket.Priority</td>
+                        <td>@ticket.Status</td>
+                        <td>@ticket.Deadline</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Priority Chart Code
+        var ctx = document.getElementById('priorityChart').getContext('2d');
+        var priorityChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['High Priority Tickets', 'Medium Priority Tickets', 'Low Priority Tickets'],
+                datasets: [{
+                    data: [@Model.HighPriorityCount, @Model.MediumPriorityCount, @Model.LowPriorityCount],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: function (event, elements) {
+                    if (elements.length > 0) {
+                        var index = elements[0].index;
+                        filterTable(index);
+                    }
+                }
+            }
+        });
+
+        // Filtering function for the table
+        function filterTable(index) {
+            var rows = document.querySelectorAll('#ticketTable tbody tr');
+
+            rows.forEach(function (row) {
+                var rowPriority = row.getAttribute('data-priority');
+
+                if (index === 0 && rowPriority === 'High') {
+                    row.style.display = '';
+                } else if (index === 1 && rowPriority === 'Medium') {
+                    row.style.display = '';
+                } else if (index === 2 && rowPriority === 'Low') {
+                    row.style.display = '';
+                } else if (index === -1) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Optionally, show all rows initially
+        filterTable(-1);
+
+        // Sorting function
+        document.querySelectorAll('#ticketTable th').forEach(function (header) {
+            header.addEventListener('click', function () {
+                var column = this.getAttribute('data-column');
+                var order = this.classList.contains('sort-asc') ? 'desc' : 'asc';
+                sortTable(column, order);
+                resetSortingClasses();
+                this.classList.add(order === 'asc' ? 'sort-asc' : 'sort-desc');
+            });
+        });
+
+        function sortTable(column, order) {
+            var rows = Array.from(document.querySelectorAll('#ticketTable tbody tr'));
+
+            rows.sort(function (a, b) {
+                var cellA = a.querySelector('td:nth-child(' + (columnIndex(column) + 1) + ')').textContent.trim();
+                var cellB = b.querySelector('td:nth-child(' + (columnIndex(column) + 1) + ')').textContent.trim();
+
+                if (order === 'asc') {
+                    return cellA.localeCompare(cellB);
+                } else {
+                    return cellB.localeCompare(cellA);
+                }
+            });
+
+            rows.forEach(function (row) {
+                document.querySelector('#ticketTable tbody').appendChild(row);
+            });
+        }
+
+        function columnIndex(columnName) {
+            switch (columnName) {
+                case 'TicketNo': return 0;
+                case 'Subject': return 1;
+                case 'TicketBody': return 2;
+                case 'CreatedAt': return 3;
+                case 'Priority': return 4;
+                case 'Status': return 5;
+                case 'Deadline': return 6;
+                default: return 0;
+            }
+        }
+
+        function resetSortingClasses() {
+            document.querySelectorAll('#ticketTable th').forEach(function (header) {
+                header.classList.remove('sort-asc', 'sort-desc');
+            });
+        }
+
+        // Filtering by text input
+        document.getElementById('filterInput').addEventListener('input', function () {
+            var filterValue = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#ticketTable tbody tr');
+
+            rows.forEach(function (row) {
+                var rowText = row.textContent.toLowerCase();
+                row.style.display = rowText.includes(filterValue) ? '' : 'none';
+            });
+        });
+    </script>
+
+</body>
+</html>
